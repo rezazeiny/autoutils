@@ -11,7 +11,7 @@ with open("README.md", "r") as fh:
 
 packages = [
     'autoutils',
-    'matrixcli'
+    # 'matrixcli'
 ]
 
 install_requires = [
@@ -26,8 +26,8 @@ install_requires = [
 ]
 
 setup(
-    name="autoutils-automation-team",  # Replace with your own username
-    version="0.1.0",
+    name="autoutils",
+    version="0.0.1",
     author="Reza Zeiny",
     author_email="rezazeiny1998@gmail.com",
     description="Some Good Function",
@@ -39,6 +39,7 @@ setup(
     platforms=['linux'],
     classifiers=[
         "Programming Language :: Python :: 3",
+        "License :: OSI Approved :: MIT License",
         "Operating System :: Linux",
     ],
     python_requires='>=3.6',
