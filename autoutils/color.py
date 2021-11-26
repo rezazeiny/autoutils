@@ -121,25 +121,44 @@ def get_color_text(*args, color=None, colors=None, sep=' '):
     return f"{get_color_text(color=color, colors=colors)}{text}{Colors.DEFAULT.value}"
 
 
-def print_color(*args, end: str = '\n', **kwargs) -> None:
+def print_color(*args, end: str = '\n', color=None, colors=None, sep=' '):
     """
-    Print Colorful text
-    :param end:
+        Print colorful text
+    Args:
+        *args: all input arguments
+        end (str): end text
+        color (Colors): text color
+        colors (List[Colors]): text colors 
+        sep (str): text separator 
+
+    Returns:
+        (str) : printed text
+
     """
-    print(get_color_text(*args, **kwargs), end=end)
+    printed_text = f"{get_color_text(*args, sep=sep, colors=colors, color=color)}"
+    print(printed_text, end=end)
+    return printed_text
 
 
-# noinspection PyMissingOrEmptyDocstring
 class Progressbar:
     """
-    Call in a loop to create terminal progress bar
+        Use this class for show progressbar in loop or etc.
     """
 
-    def __init__(self, prefix: str = "", suffix: str = "",
-                 fill: str = '█', not_fill: str = '-',
-                 left_schema: str = " |", right_schema: str = "| ",
-                 decimals: int = 1,
-                 not_terminal: bool = False, show_time=False):
+    def __init__(self, prefix="", suffix="", fill='█', not_fill='-', left_schema=" |", right_schema="| ", decimals=1,
+                 show_time=False):
+        """
+            Progressbar initialize data
+        Args:
+            prefix (str): text shown before progressbar
+            suffix (str): text shown after progressbar
+            fill (str): a character shown for filling progressbar  
+            not_fill (str): a character shown for not filled in progressbar
+            left_schema (str): a character use for left of filling string 
+            right_schema (str): a character use for right of not filling string 
+            decimals (int): decimal point for completed percent
+            show_time (bool): for showing elapsed and remaining time
+        """
         self.prefix = prefix
         self.suffix = suffix
         self.fill = fill
@@ -161,52 +180,51 @@ class Progressbar:
 
         self.is_print = False
         self.terminal = None
-        self.not_terminal = not_terminal
         self.show_time = show_time
         self.start_time = None
-        self.set_start_time()
+        self._set_start_time()
         if Terminal is not None:
             try:
                 self.terminal = Terminal()
             except Exception as e:
                 logger.error(f"You are not in terminal {e}")
 
-    def set_start_time(self):
+    def _set_start_time(self):
         self.start_time = datetime.now()
 
     @property
-    def colored_prefix(self):
+    def _colored_prefix(self):
         return get_color_text(self.prefix, color=self.prefix_color)
 
     @property
-    def colored_suffix(self):
+    def _colored_suffix(self):
         return get_color_text(self.suffix, color=self.suffix_color)
 
     @property
-    def colored_fill(self):
+    def _colored_fill(self):
         return get_color_text(self.fill, color=self.fill_color)
 
     @property
-    def colored_not_fill(self):
+    def _colored_not_fill(self):
         return get_color_text(self.not_fill, color=self.not_fill_color)
 
     @property
-    def colored_left_schema(self):
+    def _colored_left_schema(self):
         return get_color_text(self.left_schema, color=self.left_schema_color)
 
     @property
-    def colored_right_schema(self):
+    def _colored_right_schema(self):
         return get_color_text(self.right_schema, color=self.right_schema_color)
 
     @property
-    def colored_elapsed_time(self):
+    def _colored_elapsed_time(self):
         return get_color_text(self.elapsed_time, color=self.time_color)
 
     @property
-    def colored_remain_time(self):
+    def _colored_remain_time(self):
         return get_color_text(self.remain_time, color=self.time_color)
 
-    def get_percent(self, iteration: int, total: int) -> Tuple[str, int]:
+    def _get_percent(self, iteration: int, total: int) -> Tuple[str, int]:
         elapsed_time = (datetime.now() - self.start_time).total_seconds()
         self.elapsed_time = ""
         self.remain_time = ""
@@ -219,12 +237,12 @@ class Progressbar:
         percent = ("{0:." + str(self.decimals) + "f}").format(100 * (iteration / float(total))) + "% "
         minus_len = (len(self.prefix) + len(self.left_schema) + len(self.right_schema) + len(self.suffix) +
                      len(self.remain_time) + len(self.elapsed_time))
-        length = self.terminal_size - len(percent) - minus_len
+        length = self._terminal_size - len(percent) - minus_len
         return get_color_text(percent, color=self.percent_color), length
 
     # noinspection PyBroadException
     @property
-    def terminal_size(self):
+    def _terminal_size(self):
         """
         update terminal size
         :return:
@@ -240,47 +258,37 @@ class Progressbar:
             return -1
         return terminal_size
 
-    def print(self, iteration: int, total: int):
+    def print(self, iteration, total):
         """
-        Print progressbar
-        :param iteration:
-        :param total:
-        :return:
+            Print progressbar
+            if total >= iteration go to next line
+        Args:
+            iteration (int): current position of progressbar
+            total (int): total data count for progressbar
+
+        Returns:
+
+
         """
         if iteration <= 1:
-            self.set_start_time()
-        if self.terminal_size == -1:
+            self._set_start_time()
+        if self._terminal_size == -1:
             print("-", end="")
         else:
-            percent, length = self.get_percent(iteration=iteration, total=total)
+            percent, length = self._get_percent(iteration=iteration, total=total)
             filled_length = int(length * iteration // total)
             print(
-                self.colored_elapsed_time,
-                self.colored_prefix,
-                self.colored_left_schema,
-                self.colored_fill * filled_length,
-                self.colored_not_fill * (length - filled_length),
-                self.colored_right_schema,
+                self._colored_elapsed_time,
+                self._colored_prefix,
+                self._colored_left_schema,
+                self._colored_fill * filled_length,
+                self._colored_not_fill * (length - filled_length),
+                self._colored_right_schema,
                 percent,
-                self.colored_suffix,
-                self.colored_remain_time,
+                self._colored_suffix,
+                self._colored_remain_time,
                 sep="", end="\r")
 
-        # sys.stdout.write("\033[F")
         # Print New Line on Complete
-        if iteration == total:
+        if iteration <= total:
             print()
-
-
-def print_progressbar(iteration: int, total: int, **kwargs):
-    """
-    Call in a loop to create terminal progress bar
-    @params:
-        iteration   - Required  : current iteration (Int)
-        total       - Required  : total iterations (Int)
-        prefix      - Optional  : prefix string (Str)
-        suffix      - Optional  : suffix string (Str)
-        decimals    - Optional  : positive number of decimals in percent complete (Int)
-        fill        - Optional  : bar fill character (Str)
-    """
-    Progressbar(**kwargs).print(iteration, total)
