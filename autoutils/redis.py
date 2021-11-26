@@ -9,7 +9,7 @@ import logging
 
 from redis import StrictRedis
 
-from autoutils.color import Color, get_color_text
+from autoutils.color import Colors, get_color_text
 
 logger = logging.getLogger(__name__)
 

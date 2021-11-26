@@ -15,13 +15,13 @@ packages = [
 ]
 
 install_requires = [
-    "persiantools~=1.5.1",
-    "redis~=3.5.3",
-    'requests~=2.25.1',
-    'urllib3~=1.26.2',
-    "sshtunnel~=0.4.0",
-    "paramiko~=2.7.2",
-    "func-timeout~=4.3.5",
+    "persiantools~=2.0",
+    "redis~=4.0",
+    'requests~=2.25',
+    'urllib3~=1.26',
+    "sshtunnel~=0.4",
+    "paramiko~=2.7",
+    "func-timeout~=4.3",
     "blessings~=1.7"
 ]
 

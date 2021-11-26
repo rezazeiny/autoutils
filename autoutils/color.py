@@ -6,7 +6,8 @@ __author__ = ('Reza Zeiny <rezazeiny1998@gmail.com>',)
 import logging
 import os
 from datetime import datetime
-from typing import Tuple
+from enum import Enum
+from typing import Tuple, List
 
 try:
     from blessings import Terminal
@@ -16,9 +17,9 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
-class Color:
+class Colors(Enum):
     """
-    All Color for beautiful result
+        All Color for beautiful result
     """
     DEFAULT = '\033[0m'
     BOLD = '\033[1m'
@@ -64,10 +65,36 @@ class Color:
     BRIGHT_WHITE_B = '\033[107m'
 
 
-def get_text(*args, sep: str = ' ') -> str:
+def get_colors(color=None, colors=None):
     """
-    :param args: input data
-    :param sep: sep
+        get color list
+    Args:
+        color (Colors): 
+        colors (List[Colors]): 
+
+    Returns:
+        (str) : color list by string
+
+    """
+    result = ""
+    if color is not None:
+        result += color.value
+    if colors is not None:
+        for color in colors:
+            result += color.value
+    return result
+
+
+def get_text(*args, sep=' '):
+    """
+        Use this function for join some data with a separator
+    Args:
+        *args: all arguments
+        sep (str): text separator
+
+    Returns:
+        (str) : result text
+
     """
     text = ""
     for i in range(len(args)):
@@ -77,20 +104,21 @@ def get_text(*args, sep: str = ' ') -> str:
     return text
 
 
-def get_color_text(*args, color=Color.DEFAULT, **kwargs) -> str:
+def get_color_text(*args, color=None, colors=None, sep=' '):
     """
-    Print Colorful text
-    :param color:
+        Use this function for join some data with a separator and return colorful string
+    Args:
+        *args: all input arguments
+        color (Colors): text color
+        colors (List[Colors]): text colors
+        sep (str): text separator
+
+    Returns:
+        (str) : result colorful text
+
     """
-    text = get_text(*args, **kwargs)
-    colors = ""
-    if type(color) == str:
-        colors = color
-    elif type(color) == list:
-        for c in color:
-            if type(c) == str:
-                colors += c
-    return colors + text + Color.DEFAULT
+    text = get_text(*args, sep=sep)
+    return f"{get_color_text(color=color, colors=colors)}{text}{Colors.DEFAULT.value}"
 
 
 def print_color(*args, end: str = '\n', **kwargs) -> None:
@@ -122,14 +150,14 @@ class Progressbar:
         self.elapsed_time = ""
         self.remain_time = ""
 
-        self.prefix_color = Color.BRIGHT_MAGENTA_F
-        self.suffix_color = Color.MAGENTA_F
-        self.fill_color = Color.BLUE_F
-        self.not_fill_color = Color.YELLOW_F
-        self.left_schema_color = Color.RED_F
-        self.right_schema_color = Color.RED_F
-        self.percent_color = Color.CYAN_F
-        self.time_color = Color.GREEN_F
+        self.prefix_color = Colors.BRIGHT_MAGENTA_F
+        self.suffix_color = Colors.MAGENTA_F
+        self.fill_color = Colors.BLUE_F
+        self.not_fill_color = Colors.YELLOW_F
+        self.left_schema_color = Colors.RED_F
+        self.right_schema_color = Colors.RED_F
+        self.percent_color = Colors.CYAN_F
+        self.time_color = Colors.GREEN_F
 
         self.is_print = False
         self.terminal = None

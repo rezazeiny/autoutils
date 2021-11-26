@@ -11,13 +11,13 @@ from typing import List, Optional
 
 import requests
 
-from .color import get_color_text, print_color, Color
+from .color import get_color_text, print_color, Colors
 
 try:
     # noinspection PyPep8Naming
     from persiantools.jdatetime import JalaliDateTime as datetime
 except ImportError:
-    print_color("Install persiantools library with pip install", color=Color.RED_F)
+    print_color("Install persiantools library with pip install", color=Colors.RED_F)
     from datetime import datetime
 
 CRITICAL = 50
@@ -45,27 +45,27 @@ class Logger:
 
     colorful: bool = True
     show_datetime: bool = True
-    datetime_color: Color = Color.GREEN_F
+    datetime_color: Colors = Colors.GREEN_F
 
     show_file: bool = True
     show_line: bool = True
     show_func: bool = True
-    file_color: Color = Color.MAGENTA_F
+    file_color: Colors = Colors.MAGENTA_F
 
     show_process_name: bool = False
     show_process_id: bool = False
     show_thread_name: bool = False
     show_thread_id: bool = False
-    process_thread_color: Color = Color.BLUE_F
+    process_thread_color: Colors = Colors.BLUE_F
 
     show_level: bool = True
     level_detail = {
-        NOTSET: ("NOTSET   ", Color.CYAN_F),
-        CRITICAL: ("CRITICAL ", Color.BRIGHT_RED_F),
-        ERROR: ("ERROR    ", Color.RED_F),
-        WARNING: ("WARNING  ", Color.BLUE_F),
-        INFO: ("INFO     ", Color.BRIGHT_CYAN_F),
-        DEBUG: ("DEBUG    ", Color.BRIGHT_MAGENTA_F),
+        NOTSET: ("NOTSET   ", Colors.CYAN_F),
+        CRITICAL: ("CRITICAL ", Colors.BRIGHT_RED_F),
+        ERROR: ("ERROR    ", Colors.RED_F),
+        WARNING: ("WARNING  ", Colors.BLUE_F),
+        INFO: ("INFO     ", Colors.BRIGHT_CYAN_F),
+        DEBUG: ("DEBUG    ", Colors.BRIGHT_MAGENTA_F),
     }
 
     log_server: str = None
@@ -94,7 +94,7 @@ class Logger:
             Add File Handler
         """
         if cls.logger is None:
-            print_color("no logger found", color=Color.RED_F)
+            print_color("no logger found", color=Colors.RED_F)
             return
         handler = logging.FileHandler(file_address)
         handler.setLevel(log_level)
@@ -137,7 +137,7 @@ class Logger:
             return detail
 
     @classmethod
-    def get_color_text(cls, text, color: Optional[Color]):
+    def get_color_text(cls, text, color: Optional[Colors]):
         """
             Get Color Text
         """
@@ -198,7 +198,7 @@ class Logger:
         """
             Get Level Color
         """
-        return cls.level_detail.get(record.levelno, ("", Color.YELLOW_B))[1]
+        return cls.level_detail.get(record.levelno, ("", Colors.YELLOW_B))[1]
 
     @classmethod
     def record_factory(cls, *args, **kwargs):
@@ -282,7 +282,7 @@ class Logger:
             # print(send_data, full_message)
             requests.post(cls.log_server, data=data, headers=headers)
         except Exception as e:
-            print_color("error in send log to log server", e, color=Color.RED_F)
+            print_color("error in send log to log server", e, color=Colors.RED_F)
 
     @classmethod
     def send_to_log_server(cls, record: "logging.LogRecord"):
