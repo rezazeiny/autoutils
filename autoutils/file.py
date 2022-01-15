@@ -1,18 +1,19 @@
 """
-    working with file
+    working with file easily
 """
 __author__ = ('Reza Zeiny <rezazeiny1998@gmail.com>',)
 
 import gzip
 import json
 import logging
-import os
 import pickle
+from enum import Enum
+from typing import Optional, Union
 
 logger = logging.getLogger(__name__)
 
 
-class FILE_MODES:
+class FileModes(Enum):
     """
         Type of Files
     """
@@ -24,37 +25,25 @@ class FILE_MODES:
     APPEND = "append"
 
 
-def read_file(address: str, delete: bool = False,
-              is_json: bool = False, is_gzip: bool = False, is_obj: bool = False,
-              file_mode: FILE_MODES = FILE_MODES.NORMAL):
+def read_file(address, file_mode=FileModes.NORMAL) -> Optional[Union[str, list]]:
     """
-    read a file
-    :param address: address of file
-    :param file_mode: file mode
-    :param is_obj: if you want to read object
-    :param is_json: if you want to read json file
-    :param is_gzip: if you want to read gzip file
-    :param delete: if you want to delete file
-    :return: content of file or None for not exist file
+        easy way to read file
+    Args:
+        address (str): file address
+        file_mode (FileModes): mode of reading
+
+    Returns:
+        file data
+
     """
     if address is None:
         return None
-    if is_json:
-        logger.warning("is_json in read_file is deprecated. use file_mode parameter")
-        file_mode = FILE_MODES.JSON
-    if is_gzip:
-        logger.warning("is_gzip in read_file is deprecated. use file_mode parameter")
-        file_mode = FILE_MODES.GZIP
-    if is_obj:
-        logger.warning("is_obj in read_file is deprecated. use file_mode parameter")
-        file_mode = FILE_MODES.OBJECT
-
     logger.debug(f"reading file. addr: {address} {file_mode}")
     mode = "r"
-    if file_mode in [FILE_MODES.OBJECT, FILE_MODES.FILE]:
+    if file_mode in [FileModes.OBJECT, FileModes.FILE]:
         mode = "rb"
     try:
-        if file_mode == FILE_MODES.GZIP:
+        if file_mode == FileModes.GZIP:
             with gzip.open(address) as file:
                 file_data = []
                 for line in file.readlines():
@@ -64,66 +53,51 @@ def read_file(address: str, delete: bool = False,
                         pass
         else:
             with open(address, mode) as file:
-                if file_mode == FILE_MODES.JSON:
+                if file_mode == FileModes.JSON:
                     file_data = json.load(file)
-                elif file_mode == FILE_MODES.OBJECT:
+                elif file_mode == FileModes.OBJECT:
                     file_data = pickle.load(file)
-                elif file_mode == FILE_MODES.FILE:
+                elif file_mode == FileModes.FILE:
                     file_data = file.read()
-                elif file_mode == FILE_MODES.NORMAL:
+                elif file_mode == FileModes.NORMAL:
                     file_data = [s.strip() for s in file.readlines()]
 
         logger.debug(f"reading file is complete. addr: {address} {file_mode}")
-        try:
-            if delete and os.path.exists(address):
-                os.remove(address)
-        except Exception as e:
-            logger.error(f"reading file {address} error in delete e: {e}")
         return file_data
     except Exception as e:
         logger.error(f"reading file {address} failed e: {e}")
         return None
 
 
-def write_file(address: str, data,
-               is_json: bool = False, is_obj: bool = False, append: bool = False,
-               file_mode: FILE_MODES = FILE_MODES.NORMAL) -> bool:
+def write_file(address: str, data, file_mode=FileModes.NORMAL) -> bool:
     """
-    write or append data to file
-    :param address: address of file
-    :param is_json: if you want write json mode
-    :param is_obj: if you want write object mode
-    :param data: data for store
-    :param file_mode: file_mode
-    :param append:
+        Write or append easily to file
+    Args:
+        address (str): file address
+        data: data
+        file_mode (FileModes): file mode
+
+    Returns:
+        (bool) : job state
     """
     if address is None:
         return False
-    if append:
-        logger.warning("append in write_file is deprecated. use file_mode parameter")
-        file_mode = FILE_MODES.APPEND
-    if is_json:
-        logger.warning("is_json in write_file is deprecated. use file_mode parameter")
-        file_mode = FILE_MODES.JSON
-    if is_obj:
-        logger.warning("is_obj in write_file is deprecated. use file_mode parameter")
-        file_mode = FILE_MODES.OBJECT
 
-    if type(data) == str and file_mode in [FILE_MODES.APPEND, FILE_MODES.NORMAL]:
+    if type(data) == str and file_mode in [FileModes.APPEND, FileModes.NORMAL]:
         data = [data]
 
     mode = "w"
-    if file_mode == FILE_MODES.APPEND:
+    if file_mode == FileModes.APPEND:
         mode = "a+"
-    elif file_mode == FILE_MODES.OBJECT:
+    elif file_mode == FileModes.OBJECT:
         mode = "wb"
     logger.debug(f"mode: {file_mode}, addr: {address}")
 
     try:
         with open(address, mode) as file:
-            if file_mode == FILE_MODES.JSON:
+            if file_mode == FileModes.JSON:
                 json.dump(data, file, indent=4, sort_keys=True, ensure_ascii=False)
-            elif file_mode == FILE_MODES.OBJECT:
+            elif file_mode == FileModes.OBJECT:
                 pickle.dump(data, file)
             else:
                 for line in data:

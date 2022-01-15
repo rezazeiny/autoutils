@@ -5,9 +5,7 @@ __author__ = ('Reza Zeiny <rezazeiny1998@gmail.com>',)
 
 import json
 import logging
-import warnings
-from functools import wraps
-from typing import List, Optional
+from typing import List
 
 import requests
 
@@ -35,6 +33,7 @@ is_set_logger: bool = False
 class Logger:
     """
         Logger Class
+        Use this class for set all of needed things in logging
     """
     logger = None
     app_name: str = None
@@ -44,6 +43,7 @@ class Logger:
     log_format = '%(datetime)s %(level)s%(process_thread)s%(file_detail)s%(text)s'
 
     colorful: bool = True
+
     show_datetime: bool = True
     datetime_color: Colors = Colors.GREEN_F
 
@@ -73,9 +73,15 @@ class Logger:
     old_factory = None
 
     @classmethod
-    def get_logger(cls, name: str, log_level: int = INFO, *args, **kwargs):
+    def get_logger(cls, name: str, log_level: int = INFO):
         """
-            For get logger
+            Use this function for get logger object
+        Args:
+            name (str): logger name
+            log_level (int): logger lever
+
+        Returns:
+
         """
         global is_set_logger
         cls.logger = logging.getLogger(name)
@@ -137,9 +143,15 @@ class Logger:
             return detail
 
     @classmethod
-    def get_color_text(cls, text, color: Optional[Colors]):
+    def get_color_text(cls, text, color: Colors):
         """
-            Get Color Text
+            Check in config if need to use color text or not
+        Args:
+            text (str): input text
+            color (Colors): text color
+
+        Returns:
+            colored or not colored text
         """
         if cls.colorful:
             return get_color_text(text, color=color)
@@ -216,9 +228,9 @@ class Logger:
             new_args[4] += " %s"
             extra_args = True
         record = cls.old_factory(*tuple(new_args), **kwargs)
-        record.datetime = cls.get_color_text(cls.get_datetime(), color=cls.datetime_color)
-        record.process_thread = cls.get_color_text(cls.get_process_thread(record), color=cls.process_thread_color)
-        record.file_detail = cls.get_color_text(cls.get_file_detail(record), color=cls.file_color)
+        record.datetime = cls.get_color_text(cls.get_datetime(), cls.datetime_color)
+        record.process_thread = cls.get_color_text(cls.get_process_thread(record), cls.process_thread_color)
+        record.file_detail = cls.get_color_text(cls.get_file_detail(record), cls.file_color)
 
         record.short_message = None
         record.full_message = None
@@ -307,47 +319,3 @@ class Logger:
         urllib3_log.setLevel(logging.CRITICAL)
         urllib3_log.propagate = False
         cls.handle_log_server(send_data=send_data, full_message=full_message)
-
-
-def get_logger(log_level: int = INFO, name: str = __name__, *args,
-               host: str = None, app_name: str = None, extra_data: dict = None, **kwargs):
-    """
-        For get logger
-    """
-    warnings.warn("log.set_logger() is deprecated since autoutils 0.18.0, "
-                  "use Logger.get_logger()",
-                  DeprecationWarning, stacklevel=2)
-    # print_color("get_logger is deprecated. Use Logger.get_logger instead", color=Color.RED_F)
-    Logger.host = host
-    Logger.app_name = app_name
-    Logger.extra_data = extra_data
-    return Logger.get_logger(name, log_level=log_level, *args, **kwargs)
-
-
-def set_logger(*args, **kwargs):
-    """
-        Deprecated since Python 3.5, use `Logger.get_logger()`.
-    """
-    warnings.warn("log.set_logger() is deprecated since autoutils 0.18.0, "
-                  "use Logger.get_logger()",
-                  DeprecationWarning, stacklevel=2)
-    # print_color("set_logger is deprecated. Use Logger.get_logger instead", color=Color.RED_F)
-    return get_logger(*args, **kwargs)
-
-
-def stopwatch(func):
-    """
-        Calculate run function
-    """
-
-    @wraps(func)
-    def stopwatch_func(*args, **kwargs):
-        """
-            My function
-        """
-        start_dt = datetime.now()
-        result = func(*args, **kwargs)
-        end_dt = datetime.now()
-        return result, end_dt - start_dt
-
-    return stopwatch_func

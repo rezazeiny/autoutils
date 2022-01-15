@@ -1,4 +1,3 @@
-# coding=utf-8
 """
     Redis functions
 """
@@ -6,109 +5,120 @@ __author__ = ('Reza Zeiny <rezazeiny1998@gmail.com>',)
 
 import hashlib
 import logging
+import time
 
 from redis import StrictRedis
-
-from autoutils.color import Colors, get_color_text
 
 logger = logging.getLogger(__name__)
 
 
 class RedisHandler:
     """
-    Handler Redis
+        Handler For redis database
     """
 
-    def __init__(self, url: str, reset: bool = False):
+    def __init__(self, url, retry_count=3, retry_delay=2):
+        """
+
+        Args:
+            url (str): redis server url
+            retry_count (int) : how many retry in error condition
+            retry_delay (int0 :
+        """
         self.url = url
-        self.reset = reset
         self.redis_cache = StrictRedis.from_url(self.url, decode_responses=True)
+        self.retry_count = retry_count
+        self.retry_delay = retry_delay
 
-    def get(self, name: str, default=None, retry: int = 3) -> str:
-        """
-            easy function for handle cache
-            :param retry: number of retry
-            :param name: name of cache
-            :param default: default value if not exist
-            :return:
-        """
-        cache_data = "None"
-        if retry <= 0:
-            return cache_data
-        if self.reset:
-            logger.warning(f"{name} remove from cache")
-            self.set(name, cache_data)
+    def _get(self, key: str):
         try:
-            cache_data = self.redis_cache.get(name)
+            return self.redis_cache.get(key)
         except Exception as e:
             logger.error(f"Error in get from cache e: {e}")
-            return self.get(name=name, default=default, retry=retry - 1)
-        if cache_data is None or cache_data == "None":
-            logger.warning(f"{name} not found in cache. initialise it.")
-            self.set(name, default)
-        try:
-            cache_data = self.redis_cache.get(name)
-        except Exception as e:
-            logger.error(f"Error in get from cache e: {e}")
-            return self.get(name=name, default=default, retry=retry - 1)
-        logger.warning(f"{name} is {cache_data}")
-        return cache_data
+            return None
 
-    def check_hash(self, name: str, data_hash: str = None) -> bool:
+    def get(self, key, default=None, cast=None) -> str:
         """
-        check hash
-        :param name:
-        :param data_hash:
-        :return:
-        """
-        if data_hash is None:
-            return False
-        saved_hash = self.get(name=name)
-        return data_hash == saved_hash
+            get value in redis
+        Args:
+            key (str): name of value in database
+            default: default value
+            cast: cast function
+        Returns:
+            (str) : value in redis
 
-    def find_hash(self, name: str, all_hash: dict = None) -> bool:
         """
+        for i in range(self.retry_count):
+            value = self._get(key=key)
+            if value is None:
+                time.sleep(self.retry_delay)
+                continue
+            if value is None or value == "None":
+                logger.warning(f"{key} not found in cache. initialise it.")
+                self.set(key, default)
+            try:
+                return cast(self._get(value))
+            except Exception as e:
+                logger.error(f"Error in get from cache e: {e}")
+                return "None"
+        return "None"
 
-        :param name:
-        :param all_hash:
-        :return:
+    def set(self, key, value) -> bool:
         """
-        if all_hash is None:
-            return False
-        return self.check_hash(name, all_hash.get(name, None))
+            Set a value in redis
+        Args:
+            key (str): name of value
+            value (str): value
 
-    def set(self, name: str, value: str, retry: int = 3) -> str:
-        """
-
-        :param name:
-        :param value:
-        :param retry:
-        :return:
+        Returns:
+            (bool) : str
         """
         value = str(value)
-        if retry <= 0:
-            return ""
-        try:
-            self.redis_cache.set(name, value)
-        except Exception as e:
-            logger.error(f"Error in set in cache. e: {e}")
-            return self.set(name=name, value=value, retry=retry - 1)
-        return value
+        for i in range(self.retry_count):
+            try:
+                self.redis_cache.set(key, value)
+                return True
+            except Exception as e:
+                logger.error(f"Error in set in cache. e: {e}")
+                time.sleep(self.retry_delay)
+                continue
+        return False
 
-    def set_hash(self, name: str, value) -> str:
+    def set_hash(self, key, data) -> bool:
         """
-
-        :param name:
-        :param value:
-        :return:
+            Set hash of value in redis
+        Args:
+            key (str): name of key
+            data (str): data
+        Returns:
+            (bool) : result
         """
-        return self.set(name, self.get_hash(value))
+        return self.set(key, self.get_hash(data))
 
     @staticmethod
-    def get_hash(value) -> str:
+    def get_hash(data) -> str:
         """
+            Calculate hash of data
 
-        :param value:
-        :return:
+        Args:
+            data : input data
+
+        Returns:
+            (str) : hash value
         """
-        return hashlib.md5(str(value).encode()).hexdigest()
+        return hashlib.md5(str(data).encode()).hexdigest()
+
+    def check_hash(self, key, data=None) -> bool:
+        """
+            Check hash of data by saved data
+        Args:
+            key (str): input key
+            data: input data
+
+        Returns:
+            (bool) : result of checking
+        """
+        if data is None:
+            return False
+        saved_hash = self.get(key=key)
+        return self.get_hash(data) == saved_hash

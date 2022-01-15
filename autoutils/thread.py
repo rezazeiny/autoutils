@@ -7,7 +7,6 @@ import logging
 import multiprocessing
 from concurrent.futures.thread import ThreadPoolExecutor
 from datetime import datetime
-# noinspection PyCompatibility
 from queue import Queue
 from threading import Thread, Lock
 
@@ -18,7 +17,9 @@ logger = logging.getLogger(__name__)
 
 
 class Worker(Thread):
-    """Thread executing tasks from a given tasks queue"""
+    """
+        Thread executing tasks from a given tasks queue
+    """
 
     def __init__(self, pool: "ThreadPool", index=None):
         name = f"{pool.name} {index}"
@@ -30,9 +31,11 @@ class Worker(Thread):
         self.start()
 
     def run(self):
-        """Run"""
+        """
+            Run
+        """
         while True:
-            task_detail, func, args, kargs = self.pool.tasks.get()
+            task_detail, func, args, kwargs = self.pool.tasks.get()
             task_id = task_detail["id"]
             timeout = None
             if type(func) == tuple:
@@ -47,8 +50,7 @@ class Worker(Thread):
             try:
                 task_detail["status"] = "running"
                 logger.debug(f"Start running function {func.__name__} in {self.name}.")
-                result = func_timeout(timeout, func=func, args=args, kwargs=kargs)
-                # func(*args, **kargs)
+                result = func_timeout(timeout, func=func, args=args, kwargs=kwargs)
                 task_detail["status"] = "done"
                 task_detail["result"] = result
             except FunctionTimedOut:
@@ -70,9 +72,11 @@ class Worker(Thread):
 
 
 class ThreadPool:
-    """Pool of threads consuming tasks from a queue"""
+    """
+        Pool of threads consuming tasks from a queue
+    """
 
-    def __init__(self, worker_count: int = 4, total_queue: int = 20, *, name: str = "ThreadPool",
+    def __init__(self, worker_count: int = 4, total_queue: int = 20, *, name: str = __name__,
                  save_detail: bool = False, log_detail: bool = False):
         self.tasks = Queue(total_queue)
         self.name = name

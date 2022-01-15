@@ -10,25 +10,51 @@ import subprocess
 
 from .color import get_text
 
+logger = logging.getLogger(__name__)
+
 PIPE = -1
 STDOUT = -2
 DEVNULL = -3
 
-logger = logging.getLogger(__name__)
-
 
 def id_generator(size: int = 6, chars: list = string.ascii_uppercase + string.ascii_lowercase + string.digits) -> str:
     """
-    get random output
-    :param size: length of random string
-    :param chars: random set
-    :return:
+        Generate random string
+    Args:
+        size (int): size of random string
+        chars (list): define select set
+
+    Returns:
+        (str) : random string
     """
     return ''.join(random.choice(chars) for _ in range(size))
 
 
-def run_script(*args, timeout: int = None, background: bool = False, quiet: bool = False, save_output: bool = True
-               ) -> dict:
+class RunScriptResult:
+    """
+        Object for run_script result
+    """
+
+    def __init__(self):
+        self.command = None
+        self.process_id = None
+        self.exit_code = None
+        self.stdout = None
+        self.stderr = None
+        self.error = None
+
+
+def run_script(*args, timeout=None, background=False, quiet=False) -> "RunScriptResult":
+    """
+        Run Shell script in linux
+    Args:
+        *args: input command
+        timeout (int): timeout for running command
+        background (bool): run command in background
+        quiet (bool): run command without any result
+    Returns:
+        (RunScriptResult) : result object
+    """
     """
     :param save_output: for return output
     :param quiet: for run in quiet mode
@@ -36,29 +62,21 @@ def run_script(*args, timeout: int = None, background: bool = False, quiet: bool
     :param background: background run
     :return: output_code output_content
     """
-    output = {
-        "pid": None,
-        "result": None,
-        "stdout": None,
-        "stderr": None,
-        "error": None,
-    }
-    script = get_text(*args)
+    result = RunScriptResult()
+    result.command = get_text(*args)
     if background:
-        script += " &"
-    stdout = None
-    stderr = None
+        result.command += " &"
     if quiet:
         stderr = DEVNULL
         stdout = DEVNULL
-    elif save_output:
+    else:
         stdout = PIPE
         stderr = PIPE
-    logger.debug(f"run [{script}]: Start")
+    logger.debug(f"run [{result.command}]: Start")
 
     try:
-        with subprocess.Popen(script, shell=True, stdout=stdout, stderr=stderr) as process:
-            output["pid"] = process.pid
+        with subprocess.Popen(result.command, shell=True, stdout=stdout, stderr=stderr) as process:
+            result.process_id = process.pid
             stdout, stderr = "", ""
             try:
                 if background:
@@ -70,23 +88,22 @@ def run_script(*args, timeout: int = None, background: bool = False, quiet: bool
             except Exception as e:  # Including KeyboardInterrupt, TimeoutExpired, communicate handled that.
                 process.kill()
                 raise e
-            result = process.poll()
-            output["result"] = result
-            if output["result"] == 0:
-                logger.debug(f"run [{script}]: Complete")
+            result.exit_code = process.poll()
+            if result.exit_code == 0:
+                logger.debug(f"run [{result.command}]: Complete")
             else:
-                logger.debug(f"run [{script}]: Error Code: {result}")
+                logger.debug(f"run [{result.command}]: Error Code: {result.exit_code}")
             if stdout is not None:
                 if type(stdout) == bytes:
-                    output["stdout"] = stdout.decode().split("\n")[:-1]
+                    result.stdout = stdout.decode().split("\n")[:-1]
                 else:
-                    output["stdout"] = []
+                    result.stdout = []
             if stderr is not None:
                 if type(stderr) == bytes:
-                    output["stderr"] = stderr.decode().split("\n")[:-1]
+                    result.stderr = stderr.decode().split("\n")[:-1]
                 else:
-                    output["stderr"] = []
+                    result.stderr = []
     except Exception as e:
-        logger.error("error in run_script. e: %s", e)
-        output["error"] = e
-    return output
+        logger.error(f"error in run_script. e: {e}")
+        result.error = e
+    return result

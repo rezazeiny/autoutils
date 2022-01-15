@@ -1,5 +1,5 @@
 """
-    Easy tools for nice log and printing
+    Easy tools for nice string and printing
 """
 __author__ = ('Reza Zeiny <rezazeiny1998@gmail.com>',)
 
