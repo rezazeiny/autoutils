@@ -27,7 +27,7 @@ install_requires = [
 
 setup(
     name="autoutils",
-    version="0.0.2",
+    version="0.0.3",
     author="Reza Zeiny",
     author_email="rezazeiny1998@gmail.com",
     description="Some Good Function",

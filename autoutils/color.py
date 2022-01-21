@@ -118,7 +118,7 @@ def get_color_text(*args, color=None, colors=None, sep=' '):
 
     """
     text = get_text(*args, sep=sep)
-    return f"{get_color_text(color=color, colors=colors)}{text}{Colors.DEFAULT.value}"
+    return f"{get_colors(color=color, colors=colors)}{text}{Colors.DEFAULT.value}"
 
 
 def print_color(*args, end: str = '\n', color=None, colors=None, sep=' '):
