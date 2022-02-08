@@ -7,8 +7,7 @@ import logging
 import random
 import string
 import subprocess
-
-from .color import get_text
+from threading import Thread
 
 logger = logging.getLogger(__name__)
 
@@ -30,80 +29,113 @@ def id_generator(size: int = 6, chars: list = string.ascii_uppercase + string.as
     return ''.join(random.choice(chars) for _ in range(size))
 
 
-class RunScriptResult:
+class ShellScript:
     """
-        Object for run_script result
+        Shell Script
     """
 
-    def __init__(self):
-        self.command = None
+    def __init__(self, args, *, timeout=None, background=False, quiet=False, extra_data=None):
+        self.__used = False
+        self.command = args
+        self.is_running = False
         self.process_id = None
         self.exit_code = None
         self.stdout = None
         self.stderr = None
         self.error = None
 
+        self.timeout = timeout
+        self.background = background
+        self.quiet = quiet
+        self.extra_data = extra_data
 
-def run_script(*args, timeout=None, background=False, quiet=False) -> "RunScriptResult":
-    """
-        Run Shell script in linux
-    Args:
-        *args: input command
-        timeout (int): timeout for running command
-        background (bool): run command in background
-        quiet (bool): run command without any result
-    Returns:
-        (RunScriptResult) : result object
-    """
-    """
-    :param save_output: for return output
-    :param quiet: for run in quiet mode
-    :param timeout: timeout
-    :param background: background run
-    :return: output_code output_content
-    """
-    result = RunScriptResult()
-    result.command = get_text(*args)
-    if background:
-        result.command += " &"
-    if quiet:
-        stderr = DEVNULL
-        stdout = DEVNULL
-    else:
-        stdout = PIPE
-        stderr = PIPE
-    logger.debug(f"run [{result.command}]: Start")
+    def _log(self, level, message, data=None):
+        if data is None:
+            data = {}
+        if logger.isEnabledFor(level):
+            # noinspection PyProtectedMember
+            logger._log(level, f"run {self.command}: {message}", (data,))
 
-    try:
-        with subprocess.Popen(result.command, shell=True, stdout=stdout, stderr=stderr) as process:
-            result.process_id = process.pid
-            stdout, stderr = "", ""
+    def _run_job(self):
+        self.is_running = True
+        self._log(logging.DEBUG, "Start")
+        if self.quiet:
+            stderr = DEVNULL
+            stdout = DEVNULL
+        else:
+            stdout = PIPE
+            stderr = PIPE
+        try:
+            process = subprocess.Popen(self.command, stdout=stdout, stderr=stderr)
+            self.process_id = process.pid
+            self._on_start()
             try:
-                if background:
-                    process.wait(timeout=timeout)
-                else:
-                    stdout, stderr = process.communicate(timeout=timeout)
-            # except subprocess.TimeoutExpired as e:
-            #     process.kill()
-            except Exception as e:  # Including KeyboardInterrupt, TimeoutExpired, communicate handled that.
+                stdout, stderr = process.communicate(timeout=self.timeout)
+            except Exception as e:
                 process.kill()
                 raise e
-            result.exit_code = process.poll()
-            if result.exit_code == 0:
-                logger.debug(f"run [{result.command}]: Complete")
-            else:
-                logger.debug(f"run [{result.command}]: Error Code: {result.exit_code}")
             if stdout is not None:
                 if type(stdout) == bytes:
-                    result.stdout = stdout.decode().split("\n")[:-1]
+                    self.stdout = stdout.decode().split("\n")[:-1]
                 else:
-                    result.stdout = []
+                    self.stdout = []
             if stderr is not None:
                 if type(stderr) == bytes:
-                    result.stderr = stderr.decode().split("\n")[:-1]
+                    self.stderr = stderr.decode().split("\n")[:-1]
                 else:
-                    result.stderr = []
-    except Exception as e:
-        logger.error(f"error in run_script. e: {e}")
-        result.error = e
-    return result
+                    self.stderr = []
+            self.exit_code = process.poll()
+            self.is_running = False
+            if self.exit_code == 0:
+                self._log(logging.DEBUG, "Completed")
+                self._on_success()
+            else:
+                self._log(logging.DEBUG, f"Error Code {self.exit_code}")
+                self._on_error()
+        except Exception as e:
+            self.is_running = False
+            self.error = e
+            self._log(logging.DEBUG, f"Exception {e}")
+            self._on_exception()
+        return self
+
+    def _on_start(self):
+        """
+            If command is starting
+        """
+        pass
+
+    def _on_error(self):
+        """
+            If exit code of running command is not zero call this function
+        """
+        pass
+
+    def _on_success(self):
+        """
+            If exit code of running command is zero call this function
+        """
+        pass
+
+    def _on_exception(self):
+        """
+            If acquire any exception while running command call this function
+        """
+        pass
+
+    def run(self):
+        """
+            Run Script
+        """
+        if self.__used:
+            raise Exception("this command was run before. make a new instance")
+        self.__used = True
+
+        if self.background:
+            job = Thread(target=self._run_job)
+            job.start()
+            while self.process_id is None and self.error is None:
+                pass
+        else:
+            self._run_job()
+        return self

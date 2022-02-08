@@ -5,7 +5,7 @@ __author__ = ('Reza Zeiny <rezazeiny1998@gmail.com>',)
 
 import json
 import logging
-from typing import List
+from typing import List, Optional
 
 import requests
 
@@ -33,30 +33,30 @@ is_set_logger: bool = False
 class Logger:
     """
         Logger Class
-        Use this class for set all of needed things in logging
     """
     logger = None
     app_name: str = None
     host: str = None
     extra_data: dict = None
 
+    log_level: int = INFO
     log_format = '%(datetime)s %(level)s%(process_thread)s%(file_detail)s%(text)s'
 
     colorful: bool = True
-
     show_datetime: bool = True
-    datetime_color: Colors = Colors.GREEN_F
+    datetime_color: "Colors" = Colors.GREEN_F
 
+    file_depth: int = 1
     show_file: bool = True
     show_line: bool = True
     show_func: bool = True
-    file_color: Colors = Colors.MAGENTA_F
+    file_color: "Colors" = Colors.MAGENTA_F
 
     show_process_name: bool = False
     show_process_id: bool = False
     show_thread_name: bool = False
     show_thread_id: bool = False
-    process_thread_color: Colors = Colors.BLUE_F
+    process_thread_color: "Colors" = Colors.BLUE_F
 
     show_level: bool = True
     level_detail = {
@@ -73,21 +73,16 @@ class Logger:
     old_factory = None
 
     @classmethod
-    def get_logger(cls, name: str, log_level: int = INFO):
+    def get_logger(cls, name: str, log_level: int = None):
         """
-            Use this function for get logger object
-        Args:
-            name (str): logger name
-            log_level (int): logger lever
-
-        Returns:
-
+            For get logger
         """
         global is_set_logger
         cls.logger = logging.getLogger(name)
         if is_set_logger:
             return cls.logger
-
+        if log_level is None:
+            log_level = cls.log_level
         logging.basicConfig(format=cls.log_format, level=log_level)
         cls.old_factory = logging.getLogRecordFactory()
         logging.setLogRecordFactory(cls.record_factory)
@@ -143,15 +138,9 @@ class Logger:
             return detail
 
     @classmethod
-    def get_color_text(cls, text, color: Colors):
+    def get_color_text(cls, text, color: Optional[Colors]):
         """
-            Check in config if need to use color text or not
-        Args:
-            text (str): input text
-            color (Colors): text color
-
-        Returns:
-            colored or not colored text
+            Get Color Text
         """
         if cls.colorful:
             return get_color_text(text, color=color)
@@ -183,12 +172,12 @@ class Logger:
         return cls.get_outer_detail([process_detail, thread_detail])
 
     @classmethod
-    def get_file_detail(cls, record):
+    def get_file_detail(cls, record: logging.LogRecord):
         """
             Get File and line detail
         """
         file_detail = cls.get_inner_detail([
-            (cls.show_file, record.filename.split("/")[-1]),
+            (cls.show_file, "/".join(record.pathname.split("/")[-cls.file_depth:])),
             (cls.show_line, record.lineno),
         ])
         function_detail = cls.get_inner_detail([
@@ -228,9 +217,9 @@ class Logger:
             new_args[4] += " %s"
             extra_args = True
         record = cls.old_factory(*tuple(new_args), **kwargs)
-        record.datetime = cls.get_color_text(cls.get_datetime(), cls.datetime_color)
-        record.process_thread = cls.get_color_text(cls.get_process_thread(record), cls.process_thread_color)
-        record.file_detail = cls.get_color_text(cls.get_file_detail(record), cls.file_color)
+        record.datetime = cls.get_color_text(cls.get_datetime(), color=cls.datetime_color)
+        record.process_thread = cls.get_color_text(cls.get_process_thread(record), color=cls.process_thread_color)
+        record.file_detail = cls.get_color_text(cls.get_file_detail(record), color=cls.file_color)
 
         record.short_message = None
         record.full_message = None

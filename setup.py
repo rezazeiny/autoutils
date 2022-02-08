@@ -11,7 +11,7 @@ with open("README.md", "r") as fh:
 
 packages = [
     'autoutils',
-    # 'matrixcli'
+    'matrixcli'
 ]
 
 install_requires = [
@@ -27,7 +27,7 @@ install_requires = [
 
 setup(
     name="autoutils",
-    version="0.0.3",
+    version="0.0.6",
     author="Reza Zeiny",
     author_email="rezazeiny1998@gmail.com",
     description="Some Good Function",

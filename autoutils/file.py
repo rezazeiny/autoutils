@@ -6,6 +6,7 @@ __author__ = ('Reza Zeiny <rezazeiny1998@gmail.com>',)
 import gzip
 import json
 import logging
+import os
 import pickle
 from enum import Enum
 from typing import Optional, Union
@@ -107,4 +108,18 @@ def write_file(address: str, data, file_mode=FileModes.NORMAL) -> bool:
         return True
     except Exception as e:
         logger.error(f"{file_mode} fail. addr: {address}, e: {e}")
+    return False
+
+
+def remove_file_if_exists(path) -> bool:
+    """
+        Remove File if exists
+        Args:
+            path (str) : file path
+        Returns:
+            (bool) : remove state
+    """
+    if os.path.exists(path):
+        os.remove(path)
+        return True
     return False
