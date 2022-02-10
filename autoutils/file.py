@@ -9,7 +9,6 @@ import logging
 import os
 import pickle
 from enum import Enum
-from typing import Optional, Union
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +25,7 @@ class FileModes(Enum):
     APPEND = "append"
 
 
-def read_file(address, file_mode=FileModes.NORMAL) -> Optional[Union[str, list]]:
+def read_file(address, file_mode=FileModes.NORMAL):
     """
         easy way to read file
     Args:
