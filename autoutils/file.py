@@ -89,7 +89,7 @@ def write_file(address: str, data, file_mode=FileModes.NORMAL) -> bool:
     mode = "w"
     if file_mode == FileModes.APPEND:
         mode = "a+"
-    elif file_mode == FileModes.OBJECT:
+    elif file_mode in [FileModes.OBJECT, FileModes.FILE]:
         mode = "wb"
     logger.debug(f"mode: {file_mode}, addr: {address}")
 
@@ -99,6 +99,8 @@ def write_file(address: str, data, file_mode=FileModes.NORMAL) -> bool:
                 json.dump(data, file, indent=4, sort_keys=True, ensure_ascii=False)
             elif file_mode == FileModes.OBJECT:
                 pickle.dump(data, file)
+            elif file_mode == FileModes.FILE:
+                file.write(data)
             else:
                 for line in data:
                     file.write(str(line) + "\n")
