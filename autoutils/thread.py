@@ -62,12 +62,11 @@ class Worker(Thread):
                 task_detail["status"] = "error"
             finally:
                 self.pool.tasks.task_done()
-                logger.debug(
-                    f"Finish running function {func.__name__} in thread {self.name}.", func.__name__, self.name)
+                logger.debug(f"Finish running function {func.__name__} in thread {self.name}.")
                 task_detail["end_dt"] = datetime.now()
                 duration = task_detail["end_dt"] - task_detail["insert_dt"]
                 if self.pool.log_detail:
-                    logger.info(f"Task {task_id} Complete in {self.name} in {duration}", task_detail)
+                    logger.info(f"Task {task_id} Complete in {self.name} in {duration}")
             self.is_working = False
 
 
