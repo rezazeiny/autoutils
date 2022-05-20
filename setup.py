@@ -16,18 +16,18 @@ packages = [
 
 install_requires = [
     "persiantools~=2.0",
-    "redis~=4.0",
-    'requests~=2.25',
-    'urllib3~=1.26',
-    "sshtunnel~=0.4",
-    "paramiko~=2.7",
-    "func-timeout~=4.3",
-    "blessings~=1.7"
+    "redis~=4",
+    "requests~=2",
+    "urllib3~=1",
+    "sshtunnel~=0",
+    "paramiko~=2",
+    "func-timeout~=4",
+    "blessings~=1"
 ]
 
 setup(
     name="autoutils",
-    version="0.0.8",
+    version="0.1.0",
     author="Reza Zeiny",
     author_email="rezazeiny1998@gmail.com",
     description="Some Good Function",
