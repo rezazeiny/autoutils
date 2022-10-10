@@ -1,0 +1,36 @@
+[tool.poetry]
+name = "autoutils"
+version = "0.2.0"
+description = "Some Good Function"
+authors = ["Reza Zeiny <rezazeiny1998@gmail.com>"]
+license = "MIT"
+readme = "README.md"
+homepage = "https://github.com/rezazeiny/autoutils"
+repository = "https://github.com/rezazeiny/autoutils"
+keywords = ["autoutils"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+include = [
+    "LICENSE",
+]
+
+
+[tool.poetry.dependencies]
+python = "^3.6"
+persiantools = "~=2.0"
+redis = "^4.0"
+requests = "^2.0"
+urllib3 = "^1.0"
+sshtunnel = "~=0.1"
+paramiko = "^2.0"
+func-timeout = "^4.0"
+blessings = "^1.0"
+pytz = "~=2022.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

@@ -272,6 +272,8 @@ class Logger:
         """
             For send data
         """
+        if cls.log_server is None:
+            return
         try:
             if type(full_message) == dict:
                 full_message = dict(full_message)
@@ -283,7 +285,19 @@ class Logger:
             # print(send_data, full_message)
             requests.post(cls.log_server, data=data, headers=headers)
         except Exception as e:
-            print_color("error in send log to log server", e, color=Colors.RED_F)
+            print_color("error in handle data to log server", e, color=Colors.RED_F)
+            return
+        log_server = []
+        if type(cls.log_server) == str:
+            log_server = [cls.log_server]
+        elif type(cls.log_server) in [list, tuple]:
+            log_server = cls.log_server
+
+        for server in log_server:
+            try:
+                requests.post(server, data=data, headers=headers)
+            except Exception as e:
+                print_color(f"error in send data to log server {server}", e, color=Colors.RED_F)
 
     @classmethod
     def send_to_log_server(cls, record: "logging.LogRecord"):

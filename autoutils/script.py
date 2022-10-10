@@ -34,9 +34,10 @@ class ShellScript:
         Shell Script
     """
 
-    def __init__(self, args, *, timeout=None, background=False, quiet=False, extra_data=None):
+    def __init__(self, command, *, shell=False, text=True, split_stdout=True, split_stderr=True, timeout=None,
+                 background=False, quiet=False, extra_data=None):
         self.__used = False
-        self.command = args
+        self.command = command
         self.is_running = False
         self.process_id = None
         self.exit_code = None
@@ -44,6 +45,10 @@ class ShellScript:
         self.stderr = None
         self.error = None
 
+        self.shell = shell
+        self.split_stdout = split_stdout
+        self.split_stderr = split_stderr
+        self.text = text
         self.timeout = timeout
         self.background = background
         self.quiet = quiet
@@ -66,7 +71,7 @@ class ShellScript:
             stdout = PIPE
             stderr = PIPE
         try:
-            process = subprocess.Popen(self.command, stdout=stdout, stderr=stderr)
+            process = subprocess.Popen(self.command, shell=self.shell, text=self.text, stdout=stdout, stderr=stderr)
             self.process_id = process.pid
             self._on_start()
             try:
@@ -75,15 +80,19 @@ class ShellScript:
                 process.kill()
                 raise e
             if stdout is not None:
-                if type(stdout) == bytes:
-                    self.stdout = stdout.decode().split("\n")[:-1]
+                if self.text:
+                    self.stdout = stdout
                 else:
-                    self.stdout = []
+                    self.stdout = stdout.decode()
+                if self.split_stdout:
+                    self.stdout = self.stdout.split("\n")[:-1]
             if stderr is not None:
-                if type(stderr) == bytes:
-                    self.stderr = stderr.decode().split("\n")[:-1]
+                if self.text:
+                    self.stderr = stderr
                 else:
-                    self.stderr = []
+                    self.stderr = stderr.decode()
+                if self.split_stderr:
+                    self.stderr = self.stderr.split("\n")[:-1]
             self.exit_code = process.poll()
             self.is_running = False
             if self.exit_code == 0:
