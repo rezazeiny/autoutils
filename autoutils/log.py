@@ -268,25 +268,13 @@ class Logger:
         }
 
     @classmethod
-    def handle_log_server(cls, send_data, full_message):
+    def handle_log_server(cls, send_data):
         """
             For send data
         """
         if cls.log_server is None:
             return
-        try:
-            if type(full_message) == dict:
-                full_message = dict(full_message)
-                for key, value in full_message.items():
-                    if str(key) not in ["logger_data", "extra_data", "short_message", "app_name", "host_name"]:
-                        send_data[str(key)] = value
-            headers = {"Content-Type": "application/json"}
-            data = json.dumps(send_data)
-            # print(send_data, full_message)
-            requests.post(cls.log_server, data=data, headers=headers)
-        except Exception as e:
-            print_color("error in handle data to log server", e, color=Colors.RED_F)
-            return
+
         log_server = []
         if type(cls.log_server) == str:
             log_server = [cls.log_server]
@@ -295,6 +283,8 @@ class Logger:
 
         for server in log_server:
             try:
+                headers = {"Content-Type": "application/json"}
+                data = json.dumps(send_data)
                 requests.post(server, data=data, headers=headers)
             except Exception as e:
                 print_color(f"error in send data to log server {server}", e, color=Colors.RED_F)
@@ -321,4 +311,11 @@ class Logger:
         urllib3_log = logging.getLogger("urllib3")
         urllib3_log.setLevel(logging.CRITICAL)
         urllib3_log.propagate = False
-        cls.handle_log_server(send_data=send_data, full_message=full_message)
+
+        if type(full_message) == dict:
+            full_message = dict(full_message)
+            for key, value in full_message.items():
+                if str(key) not in ["logger_data", "extra_data", "short_message", "app_name", "host_name"]:
+                    send_data[str(key)] = value
+
+        cls.handle_log_server(send_data=send_data)
