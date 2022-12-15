@@ -58,7 +58,7 @@ class Worker(Thread):
                     f"Timeout in function {func.__name__} in task {task_id} thread {self.name} after {timeout}")
                 task_detail["status"] = "timeout"
             except Exception as e:
-                logger.error(f"Error in function {func.__name__} in task {task_id} thread {self.name}. e: {e}")
+                logger.exception(f"Error in function {func.__name__} in task {task_id} thread {self.name}. e: {e}")
                 task_detail["status"] = "error"
             finally:
                 self.pool.tasks.task_done()
