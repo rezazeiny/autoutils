@@ -287,7 +287,8 @@ class Logger:
                 data = json.dumps(send_data)
                 requests.post(server, data=data, headers=headers)
             except Exception as e:
-                print_color(f"error in send data to log server {server}", e, color=Colors.RED_F)
+                print_color(f"error in send data to log server {server}. Error: {e}, send_data: {send_data}",
+                            color=Colors.RED_F)
 
     @classmethod
     def send_to_log_server(cls, record: "logging.LogRecord"):
