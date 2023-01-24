@@ -1,10 +1,11 @@
 """
     Log
 """
-__author__ = ('Reza Zeiny <rezazeiny1998@gmail.com>',)
+__author__ = ("Reza Zeiny <rezazeiny1998@gmail.com>",)
 
 import json
 import logging
+import sys
 from typing import List, Optional
 
 import requests
@@ -30,6 +31,39 @@ NOTSET = 0
 is_set_logger: bool = False
 
 
+def get_inner_detail(data_list: List[tuple], sep: str = ":"):
+    """
+        For remove repeat
+    """
+    detail = ""
+    last_cond = False
+    for cond, data in data_list:
+        if cond:
+            if last_cond:
+                detail += sep
+            detail += str(data)
+        last_cond = cond
+    return detail
+
+
+def get_outer_detail(data_list: [str], sep: str = " - "):
+    """
+        For remove repeat
+    """
+    detail = ""
+    last_cond = False
+    for data in data_list:
+        cond = data != ""
+        if cond and last_cond:
+            detail += sep
+        detail += str(data)
+        last_cond = cond
+    if detail != "":
+        return "[ " + detail + " ] "
+    else:
+        return detail
+
+
 class Logger:
     """
         Logger Class
@@ -40,7 +74,7 @@ class Logger:
     extra_data: dict = None
 
     log_level: int = INFO
-    log_format = '%(datetime)s %(level)s%(process_thread)s%(file_detail)s%(text)s'
+    log_format = "%(datetime)s %(level)s%(process_thread)s%(file_detail)s%(text)s"
 
     colorful: bool = True
     show_datetime: bool = True
@@ -102,41 +136,6 @@ class Logger:
         handler.setFormatter(logging.Formatter(cls.log_format))
         cls.logger.addHandler(handler)
 
-    @staticmethod
-    def get_inner_detail(data_list: List[tuple], sep: str = ":"):
-        """
-            For remove repeat
-        """
-        detail = ""
-        last_cond = False
-        for i in range(len(data_list)):
-            cond, data = data_list[i]
-            if cond:
-                if last_cond:
-                    detail += sep
-                detail += str(data)
-            last_cond = cond
-        return detail
-
-    @staticmethod
-    def get_outer_detail(data_list: [str], sep: str = " - "):
-        """
-            For remove repeat
-        """
-        detail = ""
-        last_cond = False
-        for i in range(len(data_list)):
-            data = data_list[i]
-            cond = data != ""
-            if cond and last_cond:
-                detail += sep
-            detail += str(data)
-            last_cond = cond
-        if detail != "":
-            return "[ " + detail + " ] "
-        else:
-            return detail
-
     @classmethod
     def get_color_text(cls, text, color: Optional[Colors]):
         """
@@ -152,7 +151,7 @@ class Logger:
         """
             Get Time
         """
-        return cls.get_inner_detail([
+        return get_inner_detail([
             (cls.show_datetime, datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
         ])
 
@@ -161,36 +160,36 @@ class Logger:
         """
             Process and thread detail
         """
-        process_detail = cls.get_inner_detail([
+        process_detail = get_inner_detail([
             (cls.show_process_name, record.processName),
             (cls.show_process_id, record.process)
         ])
-        thread_detail = cls.get_inner_detail([
+        thread_detail = get_inner_detail([
             (cls.show_thread_name, record.threadName),
             (cls.show_thread_id, record.thread)
         ])
-        return cls.get_outer_detail([process_detail, thread_detail])
+        return get_outer_detail([process_detail, thread_detail])
 
     @classmethod
     def get_file_detail(cls, record: logging.LogRecord):
         """
             Get File and line detail
         """
-        file_detail = cls.get_inner_detail([
+        file_detail = get_inner_detail([
             (cls.show_file, "/".join(record.pathname.split("/")[-cls.file_depth:])),
             (cls.show_line, record.lineno),
         ])
-        function_detail = cls.get_inner_detail([
+        function_detail = get_inner_detail([
             (cls.show_func, record.module + "()"),
         ])
-        return cls.get_outer_detail([file_detail, function_detail])
+        return get_outer_detail([file_detail, function_detail])
 
     @classmethod
     def get_level(cls, record):
         """
             Get Level
         """
-        return cls.get_inner_detail([
+        return get_inner_detail([
             (cls.show_level, cls.level_detail.get(record.levelno, ("",))[0])
         ])
 
@@ -320,3 +319,220 @@ class Logger:
                     send_data[str(key)] = value
 
         cls.handle_log_server(send_data=send_data)
+
+
+class LogstashHandler(logging.Handler):
+    """
+        A handler class which send data to logstash.
+    """
+    EXTRA_FIELDS = ["name", "msg", "args", "levelname", "levelno", "pathname", "filename", "module", "exc_info",
+                    "exc_text", "stack_info", "lineno", "funcName", "created", "msecs", "relativeCreated", "thread",
+                    "threadName", "processName", "process", "message",
+                    "logger_data", "extra_data", "short_message", "app_name", "host_name"]
+    LOGGER_DATA = ["name", "levelname", "levelno", "pathname", "filename", "module", "exc_info",
+                   "exc_text", "stack_info", "lineno", "funcName", "created", "msecs", "relativeCreated", "thread",
+                   "threadName", "processName", "process"]
+
+    def __init__(self, log_server: str, app_name: str = None, host_name: str = None, extra_data: dict = None):
+        super().__init__()
+        self.log_server = log_server
+        self.app_name = app_name
+        self.host_name = host_name
+        self.extra_data = extra_data
+
+    def get_logger_data(self, record: "logging.LogRecord"):
+        """
+            Get some log data
+        """
+        logger_data = {}
+        for key in self.LOGGER_DATA:
+            logger_data[key] = getattr(record, key, None)
+        return logger_data
+
+    def get_send_data(self, record: logging.LogRecord):
+        send_data = {
+            "logger_data": self.get_logger_data(record=record),
+            "short_message": record.getMessage(),
+        }
+        if self.app_name is not None:
+            send_data["app_name"] = self.app_name
+        if self.host_name is not None:
+            send_data["host_name"] = self.host_name
+        if self.extra_data is not None:
+            send_data["extra_data"] = self.extra_data
+
+        for key, value in record.__dict__.items():
+            if key not in self.EXTRA_FIELDS:
+                send_data[key] = value
+        return send_data
+
+    def send(self, send_data: dict):
+        if not self.log_server:
+            return
+        urllib3_log = logging.getLogger("urllib3")
+        urllib3_log.setLevel(logging.CRITICAL)
+        urllib3_log.propagate = False
+        headers = {"Content-Type": "application/json"}
+        requests.post(self.log_server, json=send_data, headers=headers)
+
+    def emit(self, record: logging.LogRecord) -> None:
+        if not self.log_server:
+            return
+        try:
+            send_data = self.get_send_data(record=record)
+            self.send(send_data=send_data)
+
+        except RecursionError:  # See issue 36272
+            raise
+        except Exception as e:
+            if sys.stderr:
+                sys.stderr.write(f"error in send to logstash {self.log_server}. e: {e}")
+
+
+class ColorfulStreamHandler(logging.StreamHandler):
+    """
+        A handler class which write stram handler.
+    """
+    LEVEL_COLOR_DATA = {
+        NOTSET: ("NOTSET   ", Colors.CYAN_F),
+        CRITICAL: ("CRITICAL ", Colors.BRIGHT_RED_F),
+        ERROR: ("ERROR    ", Colors.RED_F),
+        WARNING: ("WARNING  ", Colors.BLUE_F),
+        INFO: ("INFO     ", Colors.BRIGHT_CYAN_F),
+        DEBUG: ("DEBUG    ", Colors.BRIGHT_MAGENTA_F),
+    }
+
+    def __init__(self, colorful: bool = True, show_level: bool = True,
+                 show_datetime: bool = True, datetime_color: "Colors" = Colors.GREEN_F,
+
+                 show_logger_name: bool = True, file_depth: int = 1, show_file: bool = True,
+                 show_line: bool = True, show_func: bool = True, file_color: "Colors" = Colors.MAGENTA_F,
+
+                 show_process_name: bool = False, show_process_id: bool = False,
+                 show_thread_name: bool = False, show_thread_id: bool = False,
+                 process_thread_color: "Colors" = Colors.BLUE_F):
+        super().__init__()
+        self.colorful = colorful
+        self.show_level = show_level
+
+        self.show_datetime = show_datetime
+        self.datetime_color = datetime_color
+
+        self.show_logger_name = show_logger_name
+        self.file_depth = file_depth
+        self.show_file = show_file
+        self.show_line = show_line
+        self.show_func = show_func
+        self.file_color = file_color
+
+        self.show_process_name = show_process_name
+        self.show_process_id = show_process_id
+        self.show_thread_name = show_thread_name
+        self.show_thread_id = show_thread_id
+        self.process_thread_color = process_thread_color
+
+    def get_color_text(self, text, color: Optional[Colors]):
+        """
+            Get Color Text
+        """
+        if self.colorful:
+            return get_color_text(text, color=color)
+        else:
+            return str(text)
+
+    def get_datetime(self):
+        """
+            Get Time
+        """
+        return get_inner_detail([
+            (self.show_datetime, datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+        ])
+
+    def get_process_thread(self, record):
+        """
+            Process and thread detail
+        """
+        process_detail = get_inner_detail([
+            (self.show_process_name, record.processName),
+            (self.show_process_id, record.process)
+        ])
+        thread_detail = get_inner_detail([
+            (self.show_thread_name, record.threadName),
+            (self.show_thread_id, record.thread)
+        ])
+        return get_outer_detail([process_detail, thread_detail])
+
+    def get_file_detail(self, record: logging.LogRecord):
+        """
+            Get File and line detail
+        """
+        logger_name = get_inner_detail([
+            (self.show_logger_name, record.name),
+        ])
+        file_detail = get_inner_detail([
+            (self.show_file, "/".join(record.pathname.split("/")[-self.file_depth:])),
+            (self.show_line, record.lineno),
+        ])
+        function_detail = get_inner_detail([
+            (self.show_func, record.module + "()"),
+        ])
+
+        return get_outer_detail([logger_name, file_detail, function_detail])
+
+    def get_level(self, record):
+        """
+            Get Level
+        """
+        return get_inner_detail([
+            (self.show_level, self.LEVEL_COLOR_DATA.get(record.levelno, ("",))[0])
+        ])
+
+    def get_level_color(self, record):
+        """
+            Get Level Color
+        """
+        return self.LEVEL_COLOR_DATA.get(record.levelno, ("", Colors.YELLOW_B))[1]
+
+    def emit(self, record: logging.LogRecord) -> None:
+        try:
+            color = self.get_level_color(record)
+
+            color_datetime = self.get_color_text(self.get_datetime(), color=self.datetime_color)
+            color_level = self.get_color_text(self.get_level(record), color=color)
+            color_process_thread = self.get_color_text(self.get_process_thread(record),
+                                                       color=self.process_thread_color)
+            color_file_detail = self.get_color_text(self.get_file_detail(record), color=self.file_color)
+            color_text = self.get_color_text(record.getMessage(), color=color)
+
+            message = f"{color_datetime} {color_level}{color_process_thread}{color_file_detail}{color_text}"
+
+            stream = self.stream
+            stream.write(message + self.terminator)
+            self.flush()
+        except RecursionError:  # See issue 36272
+            raise
+        except Exception:
+            self.handleError(record)
+
+# def set_logger():
+#     """
+#         For get logger
+#     """
+#     stream_handler = ColorfulStreamHandler()
+#     stream_handler.setLevel(logging.DEBUG)
+#     logging.root.addHandler(stream_handler)
+#     # todo add log handler
+#     # logger = logging.getLogger(__name__)
+#     logging.root.setLevel(logging.DEBUG)
+#     add_handler(logging.root)
+#
+#     # add_handler(logging.root)
+#     # add_handler(logging.root)
+#     # print(logging.root.name)
+#     # logstash_handler = LogstashHandler(log_server="8.8.8.8")
+#     # logstash_handler.setLevel(logging.DEBUG)
+#     # logging.root.addHandler(logstash_handler)
+#     # return logger
+#     # logging.setLoggerClass(logger_class)
+#     # logging.basicConfig(handlers=logger.handlers)
+#     # return logger
