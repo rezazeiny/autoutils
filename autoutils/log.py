@@ -493,26 +493,42 @@ class ColorfulStreamHandler(logging.StreamHandler):
         """
         return self.LEVEL_COLOR_DATA.get(record.levelno, ("", Colors.YELLOW_B))[1]
 
-    def emit(self, record: logging.LogRecord) -> None:
-        try:
-            color = self.get_level_color(record)
+    def format(self, record):
+        """
+        Format the specified record.
 
-            color_datetime = self.get_color_text(self.get_datetime(), color=self.datetime_color)
-            color_level = self.get_color_text(self.get_level(record), color=color)
-            color_process_thread = self.get_color_text(self.get_process_thread(record),
-                                                       color=self.process_thread_color)
-            color_file_detail = self.get_color_text(self.get_file_detail(record), color=self.file_color)
-            color_text = self.get_color_text(record.getMessage(), color=color)
+        If a formatter is set, use it. Otherwise, use the default formatter
+        for the module.
+        """
+        # noinspection PyUnresolvedReferences,PyProtectedMember
+        formatter = logging._defaultFormatter
+        record.message = record.getMessage()
 
-            message = f"{color_datetime} {color_level}{color_process_thread}{color_file_detail}{color_text}"
+        color = self.get_level_color(record)
 
-            stream = self.stream
-            stream.write(message + self.terminator)
-            self.flush()
-        except RecursionError:  # See issue 36272
-            raise
-        except Exception:
-            self.handleError(record)
+        color_datetime = self.get_color_text(self.get_datetime(), color=self.datetime_color)
+        color_level = self.get_color_text(self.get_level(record), color=color)
+        color_process_thread = self.get_color_text(self.get_process_thread(record),
+                                                   color=self.process_thread_color)
+        color_file_detail = self.get_color_text(self.get_file_detail(record), color=self.file_color)
+        color_text = self.get_color_text(record.getMessage(), color=color)
+
+        message = f"{color_datetime} {color_level}{color_process_thread}{color_file_detail}{color_text}"
+
+        if record.exc_info:
+            # Cache the traceback text to avoid converting it multiple times
+            # (it's constant anyway)
+            if not record.exc_text:
+                record.exc_text = formatter.formatException(record.exc_info)
+        if record.exc_text:
+            if message[-1:] != "\n":
+                message += "\n"
+            message += record.exc_text
+        if record.stack_info:
+            if message[-1:] != "\n":
+                message += "\n"
+            message += formatter.formatStack(record.stack_info)
+        return message
 
 # def set_logger():
 #     """
