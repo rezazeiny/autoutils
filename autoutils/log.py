@@ -329,8 +329,8 @@ class LogstashHandler(logging.Handler):
                     "exc_text", "stack_info", "lineno", "funcName", "created", "msecs", "relativeCreated", "thread",
                     "threadName", "processName", "process", "message",
                     "logger_data", "extra_data", "short_message", "app_name", "host_name"]
-    LOGGER_DATA = ["name", "levelname", "levelno", "pathname", "filename", "module", "exc_info",
-                   "exc_text", "stack_info", "lineno", "funcName", "created", "msecs", "relativeCreated", "thread",
+    LOGGER_DATA = ["name", "levelname", "levelno", "pathname", "filename", "module",
+                   "exc_text", "lineno", "funcName", "created", "msecs", "relativeCreated", "thread",
                    "threadName", "processName", "process"]
 
     def __init__(self, log_server: str, app_name: str = None, host_name: str = None, extra_data: dict = None):
@@ -378,6 +378,7 @@ class LogstashHandler(logging.Handler):
     def emit(self, record: logging.LogRecord) -> None:
         if not self.log_server:
             return
+        send_data = None
         try:
             send_data = self.get_send_data(record=record)
             self.send(send_data=send_data)
@@ -386,7 +387,7 @@ class LogstashHandler(logging.Handler):
             raise
         except Exception as e:
             if sys.stderr:
-                sys.stderr.write(f"error in send to logstash {self.log_server}. e: {e}")
+                sys.stderr.write(f"error in send to logstash {self.log_server}. e: {e}, send_data: {send_data}")
 
 
 class ColorfulStreamHandler(logging.StreamHandler):
