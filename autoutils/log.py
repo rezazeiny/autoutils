@@ -363,6 +363,8 @@ class LogstashHandler(logging.Handler):
 
         for key, value in record.__dict__.items():
             if key not in self.EXTRA_FIELDS:
+                if type(value) not in (bool, int, list, dict, str, float):
+                    value = str(value)
                 send_data[key] = value
         return send_data
 
