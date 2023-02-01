@@ -54,12 +54,10 @@ class ShellScript:
         self.quiet = quiet
         self.extra_data = extra_data
 
-    def _log(self, level, message, data=None):
-        if data is None:
-            data = {}
+    def _log(self, level, message, *args):
         if logger.isEnabledFor(level):
             # noinspection PyProtectedMember
-            logger._log(level, f"run {self.command}: {message}", (data,))
+            logger._log(level, f"run {self.command}: {message}", args)
 
     def _run_job(self):
         self.is_running = True
