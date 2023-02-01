@@ -8,16 +8,10 @@ import logging
 import sys
 from typing import List, Optional
 
+import pytz
 import requests
 
 from .color import get_color_text, print_color, Colors
-
-try:
-    # noinspection PyPep8Naming
-    from persiantools.jdatetime import JalaliDateTime as datetime
-except ImportError:
-    print_color("Install persiantools library with pip install", color=Colors.RED_F)
-    from datetime import datetime
 
 CRITICAL = 50
 FATAL = CRITICAL
@@ -151,6 +145,13 @@ class Logger:
         """
             Get Time
         """
+        try:
+            # noinspection PyPep8Naming
+            from persiantools.jdatetime import JalaliDateTime as datetime
+        except ImportError:
+            print_color("Install persiantools library with pip install", color=Colors.RED_F)
+            from datetime import datetime
+
         return get_inner_detail([
             (cls.show_datetime, datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
         ])
@@ -413,7 +414,9 @@ class ColorfulStreamHandler(logging.StreamHandler):
 
                  show_process_name: bool = False, show_process_id: bool = False,
                  show_thread_name: bool = False, show_thread_id: bool = False,
-                 process_thread_color: "Colors" = Colors.BLUE_F):
+                 process_thread_color: "Colors" = Colors.BLUE_F,
+
+                 is_jalali: bool = True, timezone: str = None, datetime_format: str = "%Y-%m-%d %H:%M:%S"):
         super().__init__()
         self.colorful = colorful
         self.show_level = show_level
@@ -434,6 +437,10 @@ class ColorfulStreamHandler(logging.StreamHandler):
         self.show_thread_id = show_thread_id
         self.process_thread_color = process_thread_color
 
+        self.is_jalali = is_jalali
+        self.timezone = timezone
+        self.datetime_format = datetime_format
+
     def get_color_text(self, text, color: Optional[Colors]):
         """
             Get Color Text
@@ -447,8 +454,20 @@ class ColorfulStreamHandler(logging.StreamHandler):
         """
             Get Time
         """
+        if self.is_jalali:
+            try:
+                # noinspection PyPep8Naming
+                from persiantools.jdatetime import JalaliDateTime as datetime
+            except ImportError:
+                print_color("Install persiantools library with pip install", color=Colors.RED_F)
+                from datetime import datetime
+        else:
+            from datetime import datetime
+        tz = None
+        if self.timezone:
+            tz = pytz.timezone(self.timezone)
         return get_inner_detail([
-            (self.show_datetime, datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+            (self.show_datetime, datetime.now(tz=tz).strftime(self.datetime_format))
         ])
 
     def get_process_thread(self, record):

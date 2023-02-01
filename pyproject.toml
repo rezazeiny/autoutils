@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "autoutils"
-version = "0.5.9"
+version = "0.6.0"
 description = "Some Good Function"
 authors = ["Reza Zeiny <rezazeiny1998@gmail.com>"]
 license = "MIT"
