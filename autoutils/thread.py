@@ -7,7 +7,7 @@ import logging
 import multiprocessing
 from concurrent.futures.thread import ThreadPoolExecutor
 from datetime import datetime
-from queue import Queue
+from queue import Queue, Empty
 from threading import Thread, Lock
 
 from func_timeout import func_timeout
@@ -34,8 +34,12 @@ class Worker(Thread):
         """
             Run
         """
-        while True:
-            task_detail, func, args, kwargs = self.pool.tasks.get()
+        logger.info(f"Start worker {self.name}")
+        while self.pool.get_running():
+            try:
+                task_detail, func, args, kwargs = self.pool.tasks.get(timeout=1)
+            except Empty:
+                continue
             task_id = task_detail["id"]
             timeout = None
             if type(func) == tuple:
@@ -68,6 +72,7 @@ class Worker(Thread):
                 if self.pool.log_detail:
                     logger.info(f"Task {task_id} Complete in {self.name} in {duration}")
             self.is_working = False
+        logger.info(f"Terminate worker {self.name}")
 
 
 class ThreadPool:
@@ -85,30 +90,41 @@ class ThreadPool:
         self.tasks_mutex = Lock()
         logger.info(f"{self.name} Create {worker_count} Worker With MAX_QUEUE: {total_queue}")
         self.workers = []
+        self._running = True
         for index in range(worker_count):
             self.workers.append(Worker(self, index=index))
 
+    def get_running(self):
+        return self._running
+
+    def _check_running(self):
+        if not self._running:
+            raise Exception("the threadpool stopped")
+
     def add_task(self, func, *args, **kargs) -> int:
         """Add a task to the queue"""
-        self.tasks_mutex.acquire()
-        task_id = len(self.tasks_data.keys()) + 1
-        task_detail = {
-            "id": task_id,
-            "status": "pending",
-            "insert_dt": datetime.now()
-        }
-        if self.save_detail:
-            self.tasks_data[task_id] = task_detail
+        self._check_running()
+        with self.tasks_mutex:
+            task_id = len(self.tasks_data.keys()) + 1
+            task_detail = {
+                "id": task_id,
+                "status": "pending",
+                "insert_dt": datetime.now()
+            }
+            if self.save_detail:
+                self.tasks_data[task_id] = task_detail
 
-        self.tasks.put((task_detail, func, args, kargs))
-        self.tasks_mutex.release()
+            self.tasks.put((task_detail, func, args, kargs))
         return task_id
 
-    def wait_completion(self):
+    def wait_completion(self, terminate: bool = False):
         """
             Wait for completion of all the tasks in the queue
         """
+        self._check_running()
         self.tasks.join()
+        if terminate:
+            self._running = False
 
     def get_task_data(self, task_id: int) -> dict:
         """
