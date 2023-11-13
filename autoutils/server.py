@@ -34,9 +34,9 @@ class CustomSSHClient:
         self.ssh: "paramiko.SSHClient" = ssh
 
     def execute(self, command: str) -> Tuple[int,
-                                             paramiko.channel.ChannelStdinFile,
-                                             paramiko.channel.ChannelFile,
-                                             paramiko.channel.ChannelStderrFile]:
+    paramiko.channel.ChannelStdinFile,
+    paramiko.channel.ChannelFile,
+    paramiko.channel.ChannelStderrFile]:
         """
             Execute a command and get process id
         """
@@ -267,7 +267,7 @@ class Server:
                 self.__ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
                 self.__ssh.connect(self.__ssh_host, port=self.__ssh_port,
                                    username=self.__username,
-                                   password=self.__password)
+                                   password=self.__password, sock=paramiko.ProxyCommand(self.proxy))
                 self.__sftp: "paramiko.SFTPClient" = self.__ssh.open_sftp()
                 self._run(handle=handle, retry_count=retry_count, retry_delay=retry_delay, **kwargs)
                 try:

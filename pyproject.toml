@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "autoutils"
-version = "0.7.0"
+version = "0.8.0"
 description = "Some Good Function"
 authors = ["Reza Zeiny <rezazeiny1998@gmail.com>"]
 license = "MIT"
@@ -29,6 +29,7 @@ paramiko = "^2.0"
 func-timeout = "^4.0"
 blessings = "^1.0"
 pytz = "~=2022.1"
+kafka-python = "^2.0.2"
 
 
 [build-system]

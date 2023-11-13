@@ -3,13 +3,15 @@
 """
 __author__ = ("Reza Zeiny <rezazeiny1998@gmail.com>",)
 
+import datetime
 import json
 import logging
 import sys
-from typing import List, Optional
+from typing import List, Optional, Dict, Tuple
 
 import pytz
 import requests
+from kafka import KafkaProducer
 
 from .color import get_color_text, print_color, Colors
 
@@ -322,37 +324,33 @@ class Logger:
         cls.handle_log_server(send_data=send_data)
 
 
-class LogstashHandler(logging.Handler):
+class BaseLogHandler(logging.Handler):
     """
-        A handler class which send data to logstash.
+        A handler class which send data to anywhere
     """
-    EXTRA_FIELDS = ["name", "msg", "args", "levelname", "levelno", "pathname", "filename", "module", "exc_info",
+    EXTRA_FIELDS = {"name", "msg", "args", "levelname", "levelno", "pathname", "filename", "module", "exc_info",
                     "exc_text", "stack_info", "lineno", "funcName", "created", "msecs", "relativeCreated", "thread",
                     "threadName", "processName", "process", "message",
-                    "logger_data", "extra_data", "short_message", "app_name", "host_name"]
-    LOGGER_DATA = ["name", "levelname", "levelno", "pathname", "filename", "module",
-                   "exc_text", "lineno", "funcName", "created", "msecs", "relativeCreated", "thread",
-                   "threadName", "processName", "process"]
+                    "logger_data", "extra_data", "short_message", "app_name", "host_name"}
+    LOGGER_DATA = {"name", "levelname", "levelno", "pathname", "filename", "module",
+                   "lineno", "funcName", "created", "msecs", "relativeCreated", "thread",
+                   "threadName", "processName", "process"}
 
-    def __init__(self, log_server: str, app_name: str = None, host_name: str = None, extra_data: dict = None):
+    def __init__(self, app_name: str = None, host_name: str = None, extra_data: dict = None):
         super().__init__()
-        self.log_server = log_server
         self.app_name = app_name
         self.host_name = host_name
         self.extra_data = extra_data
 
-    def get_logger_data(self, record: "logging.LogRecord"):
+    def __get_logger_data(self, record: "logging.LogRecord"):
         """
             Get some log data
         """
-        logger_data = {}
-        for key in self.LOGGER_DATA:
-            logger_data[key] = getattr(record, key, None)
-        return logger_data
+        return {key: getattr(record, key, None) for key in self.LOGGER_DATA}
 
-    def get_send_data(self, record: logging.LogRecord):
+    def _get_send_data(self, record: logging.LogRecord):
         send_data = {
-            "logger_data": self.get_logger_data(record=record),
+            "logger_data": self.__get_logger_data(record=record),
             "short_message": record.getMessage(),
         }
         if self.app_name is not None:
@@ -369,6 +367,16 @@ class LogstashHandler(logging.Handler):
                 send_data[key] = value
         return send_data
 
+
+class LogstashHandler(BaseLogHandler):
+    """
+        A handler class which send data to logstash.
+    """
+
+    def __init__(self, log_server: str, app_name: str = None, host_name: str = None, extra_data: dict = None):
+        super().__init__(app_name=app_name, host_name=host_name, extra_data=extra_data)
+        self.log_server = log_server
+
     def send(self, send_data: dict):
         if not self.log_server:
             return
@@ -383,7 +391,7 @@ class LogstashHandler(logging.Handler):
             return
         send_data = None
         try:
-            send_data = self.get_send_data(record=record)
+            send_data = self._get_send_data(record=record)
             self.send(send_data=send_data)
 
         except RecursionError:  # See issue 36272
@@ -393,11 +401,64 @@ class LogstashHandler(logging.Handler):
                 sys.stderr.write(f"error in send to logstash {self.log_server}. e: {e}, send_data: {send_data}")
 
 
+class KafkaHandler(BaseLogHandler):
+    """
+        A handler class which send data to logstash.
+    """
+
+    def __init__(self, log_server: str, topic: str, app_name: str = None, host_name: str = None,
+                 extra_data: dict = None,
+                 timezone: str = "Asia/Tehran"):
+        super().__init__(app_name=app_name, host_name=host_name, extra_data=extra_data)
+        self.log_server = log_server
+        self.timezone = timezone
+        self.producer = None
+        self.topic = topic
+
+    def set_producer(self):
+        if self.producer is None:
+            self.producer = KafkaProducer(bootstrap_servers=self.log_server,
+                                          value_serializer=lambda v: json.dumps(v).encode("utf-8"),
+                                          linger_ms=10)
+
+    def _get_send_data(self, record: logging.LogRecord):
+        send_data = super()._get_send_data(record=record)
+        send_data["time"] = self.get_now_time_for_elastic()
+        return send_data
+
+    def send(self, send_data: dict):
+        if self.producer is not None:
+            self.producer.send(self.topic, send_data)
+        # self.producer.flush(timeout=1.0)
+        # future.get(timeout=60)
+
+    def emit(self, record: logging.LogRecord) -> None:
+        if not self.log_server or not self.topic:
+            return
+        try:
+            send_data = self._get_send_data(record=record)
+            self.set_producer()
+            self.send(send_data=send_data)
+
+        except RecursionError:  # See issue 36272
+            raise
+        except Exception as e:
+            if sys.stderr:
+                sys.stderr.write(f"error in send to kafka {self.log_server}. e: {e}")
+
+    def get_now_time_for_elastic(self):
+        """
+            Get time for elastic
+        """
+        tz = pytz.timezone(self.timezone)
+        return datetime.datetime.now(tz=tz).strftime("%Y-%m-%dT%H:%M:%S%z")
+
+
 class ColorfulStreamHandler(logging.StreamHandler):
     """
         A handler class which write stram handler.
     """
-    LEVEL_COLOR_DATA = {
+    LEVEL_COLOR_DATA: Dict[int, Tuple[str, Colors]] = {
         NOTSET: ("NOTSET   ", Colors.CYAN_F),
         CRITICAL: ("CRITICAL ", Colors.BRIGHT_RED_F),
         ERROR: ("ERROR    ", Colors.RED_F),
@@ -551,26 +612,3 @@ class ColorfulStreamHandler(logging.StreamHandler):
                 message += "\n"
             message += formatter.formatStack(record.stack_info)
         return message
-
-# def set_logger():
-#     """
-#         For get logger
-#     """
-#     stream_handler = ColorfulStreamHandler()
-#     stream_handler.setLevel(logging.DEBUG)
-#     logging.root.addHandler(stream_handler)
-#     # todo add log handler
-#     # logger = logging.getLogger(__name__)
-#     logging.root.setLevel(logging.DEBUG)
-#     add_handler(logging.root)
-#
-#     # add_handler(logging.root)
-#     # add_handler(logging.root)
-#     # print(logging.root.name)
-#     # logstash_handler = LogstashHandler(log_server="8.8.8.8")
-#     # logstash_handler.setLevel(logging.DEBUG)
-#     # logging.root.addHandler(logstash_handler)
-#     # return logger
-#     # logging.setLoggerClass(logger_class)
-#     # logging.basicConfig(handlers=logger.handlers)
-#     # return logger
