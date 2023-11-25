@@ -160,7 +160,7 @@ class Server:
         }}
         if logger.isEnabledFor(level):
             # noinspection PyProtectedMember
-            logger._log(level, f"{self}: {message}", (log_data,))
+            logger._log(level, f"{self}: {message}", args=(), extra=log_data)
 
     @staticmethod
     def test_handle(sftp: "paramiko.SFTPClient"):
@@ -267,7 +267,7 @@ class Server:
                 self.__ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
                 self.__ssh.connect(self.__ssh_host, port=self.__ssh_port,
                                    username=self.__username,
-                                   password=self.__password, sock=paramiko.ProxyCommand(self.proxy))
+                                   password=self.__password)
                 self.__sftp: "paramiko.SFTPClient" = self.__ssh.open_sftp()
                 self._run(handle=handle, retry_count=retry_count, retry_delay=retry_delay, **kwargs)
                 try:
