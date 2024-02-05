@@ -43,6 +43,7 @@ class BaseApi:
     retry_delay: int = 3
     token_name: str = "Bearer"
     supported_http_methods: List[str] = None
+    proxies: dict = None
 
     def __post_init__(self):
         if not self.supported_http_methods:
@@ -80,6 +81,7 @@ class BaseApi:
                     headers=headers,
                     verify=self.validate_cert,
                     timeout=self.connection_timeout,
+                    proxies=self.proxies,
                     **send_data
                 )
                 logger.info(
