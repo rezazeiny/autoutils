@@ -1,101 +1,94 @@
+import dataclasses
 import json
+import logging
+import time
+from typing import Optional, Union, List, Dict
 
-from requests import Session
+from requests import Session, Response
+
+logger = logging.getLogger(__name__)
 
 
+@dataclasses.dataclass
+class ServerResponse:
+    """
+        Server response
+    """
+    response: "Response" = None
+    status_code: int = 503
+
+    def __post_init__(self):
+        if self.response is not None:
+            self.status_code = self.response.status_code
+
+    @property
+    def json_response(self) -> Optional[Union[List, Dict]]:
+        if not self.response:
+            return None
+        try:
+            return self.response.json()
+        except json.JSONDecodeError:
+            pass
+
+
+@dataclasses.dataclass
 class BaseApi:
-    """
-        Use this class for handle all api
-        Attributes:
-            base_url (str) : base url
-            token (str) : request token
-            default_429_wait_time (int) : if response code is 429 wait this time
-            connection_timeout (int) : wait this time for connect
-            validate_cert (bool) : validate certificate for https connection
-            user_agent (str) : default user agent for connection
-            retry_count (int) : default retry count when error acquire
-            retry_delay (int) : time to wait in error condition for next try
-    """
+    name: str
+    base_url: str
+    token: str
+    connection_timeout: int = 60
+    validate_cert: bool = True
+    user_agent: str = "autoutils"
+    retry_count: int = 1
+    retry_delay: int = 3
+    token_name: str = "Bearer"
+    supported_http_methods: List[str] = None
 
-    def __init__(self, base_url: str, token: str = None, default_429_wait_time: int = 5,
-                 connection_timeout: int = 60, validate_cert: bool = True, user_agent: str = None,
-                 retry_count: int = 1, retry_delay: int = 3):
-        self.base_url = base_url
-        self.token = token
-        self.validate_cert = validate_cert
+    def __post_init__(self):
+        if not self.supported_http_methods:
+            self.supported_http_methods = ["GET", "PUT", "DELETE", "POST", "PATCH"]
         self.session = Session()
-        self.default_429_wait_time = default_429_wait_time
-        self.connection_timeout = connection_timeout
-        self.user_agent = user_agent
-        self.retry_count = retry_count
-        self.retry_delay = retry_delay
 
-    def _send(self, method: str, path:str, api_path: str = "", content:dict=None, query_params:dict=None, headers=None, return_json=True):
-        """
-            Same function for send api request
-        Args:
-            method (str):
-            path (str):
-            api_path:
-            content:
-            query_params:
-            headers:
-            return_json:
-
-        Returns:
-
-        """
+    def _send(self, method: str, path: str, content: dict = None, files=None,
+              query_params: dict = None, is_json=True):
+        method = method.upper()
+        if method not in self.supported_http_methods:
+            raise Exception(f"Unsupported HTTP method: {method}")
         if query_params is None:
             query_params = {}
-        if headers is None:
-            headers = {}
-
-        if "User-Agent" not in headers and self.user_agent:
-            headers["User-Agent"] = self.user_agent
-
-        method = method.upper()
-        if method not in ["GET", "PUT", "DELETE", "POST", "PATCH"]:
-            raise Exception(f"Unsupported HTTP method: {method}")
-
-        if "Content-Type" not in headers:
-            headers["Content-Type"] = "application/json"
-
-        query_params["access_token"] = self.token
-
-        endpoint = self.base_url + api_path + path
-
-        if headers["Content-Type"] == "application/json" and content is not None:
-            content = json.dumps(content)
-        while True:
+        headers = {
+            "User-Agent": self.user_agent,
+            "Authorization": f"{self.token_name} {self.token}"
+        }
+        endpoint = self.base_url + path
+        logger.info(f"{self.name} api: method {method} with url {endpoint} start")
+        if is_json:
+            send_data = {
+                "json": content
+            }
+        else:
+            send_data = {
+                "data": content,
+                "files": files
+            }
+        retry_count = 0
+        while retry_count < self.retry_count:
             try:
                 response = self.session.request(
                     method, endpoint,
                     params=query_params,
-                    data=content,
                     headers=headers,
                     verify=self.validate_cert,
                     timeout=self.connection_timeout,
+                    **send_data
                 )
-            except RequestException as e:
-                raise MatrixHttpLibError(e, method, endpoint)
-            try:
-                json_response = response.json()
+                logger.info(
+                    f"{self.name} api: method {method} with url {endpoint} end. status code {response.status_code}")
+                return ServerResponse(response=response)
             except Exception as e:
-                logger.error(e)
-                json_response = {}
-            if response.status_code == codes.too_many_requests:
-                wait_time = json_response.get('retry_after_ms', self.default_429_wait_ms / 1000)
-                if json_response.get('error') is not None:
-                    logger.error(json_response.get('error'))
-                sleep(wait_time)
-            else:
-                break
-
-        if response.status_code < codes.ok or response.status_code >= codes.multiple_choices:
-            raise MatrixRequestError(
-                code=response.status_code, content=response.text
-            )
-        if return_json:
-            return json_response
-        else:
-            return response
+                logger.error(f"{self.name} api: method {method} with url {endpoint} has error {e}")
+            retry_count += 1
+            if retry_count < self.retry_count:
+                logger.error(f"{self.name} api: method {method} with url {endpoint} wait {self.retry_delay}")
+                time.sleep(self.retry_delay)
+        return ServerResponse()
